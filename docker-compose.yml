@@ -1,96 +1,109 @@
 name: media-local
 
 services:
-bittorrent:
-  image: lscr.io/linuxserver/qbittorrent:latest
-  restart: unless-stopped
+  bittorrent:
+    image: lscr.io/linuxserver/qbittorrent
+    restart: unless-stopped
 
-  environment:
-    PUID: "1000"
-    PGID: "1000"
-    TZ: Europe/Amsterdam
-    WEBUI_PORT: "8088"
-    TORRENTING_PORT: "6881"
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Europe/Amsterdam
+      WEBUI_PORT: "8088"
+      TORRENTING_PORT: "6881"
 
-  ports:
-    # Web interface: only accessible from this Windows computer
-    - "127.0.0.1:8088:8088"
+    ports:
+      - "127.0.0.1:8088:8088"
+      - "6881:6881"
+      - "6881:6881/udp"
 
-    # Optional incoming BitTorrent connectivity
-    - "6881:6881"
-    - "6881:6881/udp"
+    volumes:
+      - bittorrent_config:/config
+      - "C:/docker_data/data:/data"
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
 
-  volumes:
-    - bittorrent_config:/config
-    - "C:/docker_data/data:/data"
+    environment:
+      LOG_LEVEL: info
+      LOG_HTML: "false"
+      CAPTCHA_SOLVER: none
+      TZ: Europe/Amsterdam
 
-radarr:
-  image: lscr.io/linuxserver/radarr:latest
-  restart: unless-stopped
+    ports:
+      # Only needed so you can test it from Windows.
+      - "127.0.0.1:8191:8191"
+  jackett:
+    image: lscr.io/linuxserver/jackett:latest
+    container_name: jackett
+    restart: unless-stopped
 
-  environment:
-    PUID: "1000"
-    PGID: "1000"
-    TZ: Europe/Amsterdam
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Europe/Amsterdam
+      AUTO_UPDATE: "true"
 
-  ports:
-    - "127.0.0.1:7878:7878"
+    ports:
+      - "127.0.0.1:9117:9117"
 
-  volumes:
-    - radarr_config:/config
-    - "C:/docker_data/data:/data"
+    volumes:
+      - jackett_config:/config
 
-  depends_on:
-    - bittorrent
+    depends_on:
+      - flaresolverr
 
-prowlarr:
-  image: lscr.io/linuxserver/prowlarr:latest
-  restart: unless-stopped
+  radarr:
+    image: lscr.io/linuxserver/radarr
+    restart: unless-stopped
 
-  environment:
-    PUID: "1000"
-    PGID: "1000"
-    TZ: Europe/Amsterdam
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Europe/Amsterdam
 
-  ports:
-    - "127.0.0.1:9696:9696"
+    ports:
+      - "127.0.0.1:7878:7878"
 
-  volumes:
-    - prowlarr_config:/config
+    volumes:
+      - radarr_config:/config
+      - "C:/docker_data/data:/data"
 
-  depends_on:
-    - radarr
+    depends_on:
+      - bittorrent
+      - jackett
 
-jellyfin:
-  image: jellyfin/jellyfin:latest
-  restart: unless-stopped
+  jellyfin:
+    image: jellyfin/jellyfin
+    restart: unless-stopped
 
-  ports:
-    - "127.0.0.1:8096:8096"
+    ports:
+      - "127.0.0.1:8096:8096"
 
-  volumes:
-    - jellyfin_config:/config
-    - jellyfin_cache:/cache
-    - "C:/docker_data/data:/data:ro"
+    volumes:
+      - jellyfin_config:/config
+      - jellyfin_cache:/cache
+      - "C:/docker_data/data:/data:ro"
 
-jellyseerr:
-  image: fallenbagel/jellyseerr:latest
-  restart: unless-stopped
+  jellyseerr:
+    image: fallenbagel/jellyseerr
+    restart: unless-stopped
 
-  ports:
-    - "127.0.0.1:5055:5055"
+    ports:
+      - "127.0.0.1:5055:5055"
 
-  volumes:
-    - jellyseerr_config:/app/config
+    volumes:
+      - jellyseerr_config:/app/config
 
-  depends_on:
-    - jellyfin
-    - radarr
+    depends_on:
+      - jellyfin
+      - radarr
 
 volumes:
   bittorrent_config:
+  jackett_config:
   radarr_config:
-  prowlarr_config:
   jellyfin_config:
   jellyfin_cache:
   jellyseerr_config:
