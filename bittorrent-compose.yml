@@ -1,0 +1,48 @@
+services:
+  bittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: bittorrent
+    restart: always
+
+    env_file:
+      - ./env/bittorrent.env
+
+    environment:
+      WEBUI_PORT: "8088"
+      TORRENTING_PORT: "6881"
+
+    ports:
+      # Web UI available only on this Windows computer
+      - "127.0.0.1:8088:8088"
+
+      # Incoming BitTorrent connections
+      - "6881:6881"
+      - "6881:6881/udp"
+
+    volumes:
+      - /mnt/c/docker_data/bittorrent:/config
+      - /mnt/c/docker_data:/media
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8088/ || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+      retries: 5
+
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.bittorrent.rule=Host(`bittorrent.${DOMAIN}`)
+      - traefik.http.routers.bittorrent.entrypoints=websecure
+      - traefik.http.services.bittorrent.loadbalancer.server.port=8088
+
+    depends_on:
+      traefik:
+        condition: service_healthy
+        restart: true
+
+networks:
+  default:
+    name: media_network
+    driver: bridge
+    attachable: true
